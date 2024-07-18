@@ -8,13 +8,13 @@ var fn_copyimg={
 		})
 	},
 	copyImage:async (imageURL)=>{
-		console.log(imageURL)
-		var _img=await fetch(imageURL);
-			_img=await _img.blob(_img);
-		var _blob = await fn_copyimg.blob2canvas(_img);
-		console.log(_img);
-		const item = new ClipboardItem({ "image/png": _blob });
-		navigator.clipboard.write([item]);
+		console.log('copyImage',imageURL)
+		// var _img=await fetch(imageURL);
+		// 	_img=await _img.blob(_img);
+		// var _blob = await fn_copyimg.blob2canvas(_img);
+		// console.log(_img);
+		// const item = new ClipboardItem({ "image/png": _blob });
+		// navigator.clipboard.write([item]);
 	},
 	blob2canvas:(blob)=>{
 		console.log(blob)
