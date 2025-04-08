@@ -3014,35 +3014,93 @@ var suo={
 			}
 		}
 	},
-	confImport:function(){
-		var file=document.querySelector("#import_file").files[0];
-		var reader=new FileReader();
-		let importedConfig={};
-		reader.readAsText(file);
-		reader.onload=function(e){
-			var str=Base64.decode(e.target.result);
-			console.log("sdf")
-			try{
-				importedConfig=JSON.parse(str);
-				console.log(importedConfig)
-				if(importedConfig.general){
-					if(importedConfig.version>config.version){
-						alert(suo.getI18n("msg_importver"));
-						return;
-					}
-					localStorage.setItem("sync",importedConfig.general.sync.autosync.toString());
-					config={};
-					config=importedConfig;
-					suo.saveConf2();
-					window.setTimeout(function(){window.location.reload();},1000);
-				}	
-			}
-			catch(error){
-				console.log(error)
-				alert(suo.getI18n("msg_confimport"))
-			}
-		}
-	},
+    confImport: function() {
+        var file = document.querySelector("#import_file").files[0];
+        if (!file) {
+            alert("请选择配置文件");
+            return;
+        }
+        
+        var reader = new FileReader();
+        reader.readAsText(file);
+        reader.onload = function(e) {
+            try {
+                // 先备份当前配置
+                var currentConfig = JSON.stringify(config);
+                localStorage.setItem("config_backup", currentConfig);
+                
+                // 尝试解析
+                var importedConfig;
+                try {
+                    importedConfig = JSON.parse(e.target.result);
+                } catch (parseError) {
+                    try {
+                        var str = Base64.decode(e.target.result);
+                        importedConfig = JSON.parse(str);
+                    } catch (b64Error) {
+                        alert("无效的配置文件格式");
+                        return;
+                    }
+                }
+                
+                // 确保关键结构存在
+                if (!importedConfig.general) importedConfig.general = {};
+                if (!importedConfig.general.engine) importedConfig.general.engine = {};
+                if (!importedConfig.general.engine.imgengine) importedConfig.general.engine.imgengine = [];
+                
+                // 更新内存中的配置
+                config = importedConfig;
+                
+                // 综合方法 - 使用所有可能的存储方式
+                // 1. 使用扩展自己的方法
+                if (suo.saveConf2) {
+                    suo.saveConf2();
+                    console.log("suo.saveConf2() 已执行");
+                }
+                
+                // 2. 尝试另一个可能的保存方法
+                if (suo.saveConfig) {
+                    suo.saveConfig(config);
+                    console.log("suo.saveConfig() 已执行");
+                }
+                
+                // 3. localStorage
+                localStorage.setItem("config", JSON.stringify(config));
+                console.log("保存到 localStorage 完成");
+                
+                // 4. chrome.storage.local
+                if (chrome.storage && chrome.storage.local) {
+                    chrome.storage.local.set({config: config}, function() {
+                        console.log("保存到 chrome.storage.local 完成");
+                    });
+                }
+                
+                // 5. 通知后台页面
+                if (chrome.runtime && chrome.runtime.sendMessage) {
+                    chrome.runtime.sendMessage({
+                        action: "updateConfig",
+                        config: config
+                    });
+                    console.log("已发送消息到后台页面");
+                }
+                
+                // 增加延时，确保所有异步保存操作完成
+                setTimeout(function() {
+                    // 检查是否启用了同步，如果有则需要特别处理
+                    if (importedConfig.general && importedConfig.general.sync) {
+                        localStorage.setItem("sync", importedConfig.general.sync.autosync.toString());
+                    }
+                    
+                    console.log("配置已保存，即将刷新页面");
+                    window.location.reload();
+                }, 1000);
+            }
+            catch (error) {
+                console.error("导入过程错误:", error);
+                alert("导入配置失败: " + error.message);
+            }
+        };
+    },
 	confExport:function(){
 		// let theConf={};
 		// if(localStorage.getItem("sync")=="true"){
