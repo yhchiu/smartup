@@ -11,8 +11,9 @@ import (
 	"github.com/go-vgo/robotgo"
 )
 
+var lastMsgTime int64
 type Msg struct {
-	Timestamp *int64 `json:"timestamp,omitempty"`
+	Timestamp int64 `json:"timestamp,omitempty"`
 	Click     *struct {
 		Y int `json:"y"`
 		X int `json:"x"`
@@ -24,10 +25,24 @@ type Msg struct {
 	} `json:"key,omitempty"`
 }
 
+type Message struct {
+	Content   []byte
+	MsgNum    int
+}
+
 func main() {
-	msg := `{"version": "0.7"}`
+	msg := `{"version": "0.8"}`
 	msgNum := 1
 	SendMessage([]byte(msg))
+
+	msgChan := make(chan Message, 100)
+
+	go func() {
+		for msg := range msgChan {
+			ProcessRequest(msg.Content, msg.MsgNum)
+		}
+	}()
+
 	for {
 		length, err := ReadFrom(os.Stdin, 4)
 		if nil != err || len(length) < 1 {
@@ -45,7 +60,11 @@ func main() {
 		os.Stderr.Write([]byte(fmt.Sprintf("[debug] Received msg: %s\n", text)))
 
 		msgNum += 1
-		ProcessRequest(text, msgNum)
+
+		msgChan <- Message{
+			Content:   text,
+			MsgNum:    msgNum,
+		}
 	}
 }
 
@@ -68,7 +87,7 @@ func SendMessage(jsonMsg []byte) {
 	binary.LittleEndian.PutUint32(bs, uint32(len(jsonMsg)))
 	os.Stdout.Write(bs)
 	os.Stdout.Write(jsonMsg)
-	os.Stderr.Write([]byte(fmt.Sprintf("[debug] sent msg: %s\n", jsonMsg)))
+	os.Stderr.Write([]byte(fmt.Sprintf("[debug] sent msg: %s\n\n\n", jsonMsg)))
 }
 
 func ProcessRequest(req []byte, msgNum int) {
@@ -86,11 +105,18 @@ func ProcessRequest(req []byte, msgNum int) {
 		panic(`Parse msg faild.`)
 	}
 
+	if lastMsgTime>0 && msg.Timestamp-lastMsgTime < 200 {
+		lastMsgTime = 0
+		os.Stderr.Write([]byte(fmt.Sprintf("[debug] skip msg: %v\n", msg)))
+		return
+	}
+	
+	lastMsgTime = msg.Timestamp
 	var delay int64
 	resp := map[string]interface{}{}
 
-	if nil != msg.Timestamp {
-		delay = time.Now().UnixMilli() - *msg.Timestamp
+	if msg.Timestamp>0 {
+		delay = time.Now().UnixMilli() - msg.Timestamp
 	} else {
 		os.Stderr.Write([]byte(fmt.Sprintf("[debug] msg has no timestamp: %v\n", msg)))
 	}
