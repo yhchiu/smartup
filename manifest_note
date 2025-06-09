@@ -2,8 +2,8 @@
 //chrome
 "incognito": "split",
 "permissions": ["tabs","<all_urls>","notifications","storage","contextMenus","unlimitedStorage","tts"],
-"optional_permissions": ["downloads","downloads.shelf","clipboardRead","clipboardWrite","bookmarks","history","management","sessions","pageCapture","background","topSites"]
+"optional_permissions": ["downloads","downloads.shelf","clipboardRead","clipboardWrite","bookmarks","management","sessions","pageCapture","background","topSites"]
 
 //firefox
 "permissions": ["tabs","<all_urls>","notifications","storage","contextMenus","unlimitedStorage","management","sessions"],
-"optional_permissions": ["browserSettings","downloads","clipboardRead","clipboardWrite","bookmarks","history","topSites"]
+"optional_permissions": ["browserSettings","downloads","clipboardRead","clipboardWrite","bookmarks","topSites"]

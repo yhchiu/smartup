@@ -1,46 +1,69 @@
 {
-	"manifest_version": 2,
-	"minimum_chrome_version": "22",
-	"name": "__MSG_ext_name__",
-	"short_name":"smartUp",
-	"version": "7.2.622.1170",
-	"description": "__MSG_ext_des__",
-	"default_locale": "en",
-	"author":"zimo",
-	"icons": {
-		"16": "icon.png",
-		"48": "icon.png",
-		"128": "icon.png"
-	},
-	"background": {
-		"scripts": ["js/purify.js","js/gbk.js","js/background.js"],
-		"persistent": true
-	},
-	"content_scripts": [
-		{
-			"js": ["js/event.js"],
-			"matches": ["<all_urls>"],
-			"run_at": "document_start",
-			"all_frames":true,
-			"match_about_blank":true
-		}
-	],
-	"browser_action": {
-		"default_icon": {
-			"19": "icon.png",
-			"38": "icon.png"
-		},
-		"default_title": "smartUp",
-		"default_popup": "html/popup.html"
-	},
-	"options_ui": {
-		"open_in_tab": true,
-		"page": "html/options.html"
-	},
-	"web_accessible_resources": [
-		"image/*",
-		"icon.png"
-	],
-	"permissions": ["tabs","<all_urls>","notifications","storage","contextMenus","unlimitedStorage","tts"],
-	"optional_permissions": ["downloads","downloads.shelf","clipboardRead","clipboardWrite","bookmarks","history","management","sessions","pageCapture","background","topSites"]
+  "manifest_version": 3,
+  "minimum_chrome_version": "22",
+  "name": "__MSG_ext_name__",
+  "short_name": "smartUp",
+  "version": "7.2.622.1170",
+  "description": "__MSG_ext_des__",
+  "default_locale": "en",
+  "author": "zimo",
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "background": {
+    "service_worker": "js/background.js"
+  },
+  "content_scripts": [
+    {
+      "js": ["js/event.js"],
+      "matches": ["<all_urls>"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_about_blank": true
+    }
+  ],
+  "action": {
+    "default_icon": {
+      "16": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    },
+    "default_popup": "html/popup.html",
+    "default_title": "smartUp"
+  },
+  "options_ui": {
+    "open_in_tab": true,
+    "page": "html/options.html"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["images/*", "icon.png"],
+      "matches": ["*://*/*"]
+    }
+  ],
+  "permissions": [
+    "tabs",
+    "notifications",
+    "storage",
+    "contextMenus",
+    "unlimitedStorage",
+    "tts",
+    "activeTab",
+    "scripting"
+  ],
+  "optional_permissions": [
+    "downloads",
+    "downloads.shelf",
+    "clipboardRead",
+    "clipboardWrite",
+    "bookmarks",
+    "management",
+    "sessions",
+    "pageCapture",
+    "background",
+    "topSites"
+  ],
+  "host_permissions": ["<all_urls>"]
 }
