@@ -843,24 +843,9 @@ let loadConfig = function (noInit, type) {
       sub.init();
     }
   }
-  if (!type) {
-    if (chrome.storage.sync) {
-      chrome.storage.sync.get(["sync"], function (result) {
-        if (result.sync === undefined) {
-          chrome.storage.sync.set({ sync: "true" }, function () {
-            type = "sync";
-          });
-        } else {
-          type = result.sync == "true" ? "sync" : "local";
-        }
-      });
-    } else {
-      chrome.storage.local.set({ sync: "false" }, function () {
-        type = "local";
-      });
-    }
-  }
-  if (type == "sync") {
+  
+  // Function to load sync storage
+  function loadSyncStorage() {
     chrome.storage.sync.get(function (items) {
       if (!items.general) {
         config = getDefault.value();
@@ -871,7 +856,10 @@ let loadConfig = function (noInit, type) {
       needInit();
       //sub.init();
     });
-  } else {
+  }
+  
+  // Function to load local storage
+  function loadLocalStorage() {
     chrome.storage.local.get(function (items) {
       if (items.version && items.version < 41) {
         //for old version
@@ -892,6 +880,38 @@ let loadConfig = function (noInit, type) {
       needInit();
       //sub.init();
     });
+  }
+  
+  if (!type) {
+    if (chrome.storage.sync) {
+      chrome.storage.sync.get(["sync"], function (result) {
+        if (result.sync === undefined) {
+          chrome.storage.sync.set({ sync: "true" }, function () {
+            // After setting sync to true, load sync storage
+            loadSyncStorage();
+          });
+        } else {
+          // Based on the result, load appropriate storage
+          if (result.sync == "true") {
+            loadSyncStorage();
+          } else {
+            loadLocalStorage();
+          }
+        }
+      });
+    } else {
+      chrome.storage.local.set({ sync: "false" }, function () {
+        // If sync is not available, load local storage
+        loadLocalStorage();
+      });
+    }
+  } else {
+    // If type is already defined, use it directly
+    if (type == "sync") {
+      loadSyncStorage();
+    } else {
+      loadLocalStorage();
+    }
   }
 };
 
