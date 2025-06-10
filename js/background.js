@@ -1035,6 +1035,12 @@ var sub = {
     }
   },
   init: function () {
+    // Check if config is properly initialized before proceeding
+    if (!config || !config.general || !config.general.fnswitch) {
+      console.error("Config not properly initialized in sub.init()");
+      return;
+    }
+    
     sub.upgrade.up();
     sub.initpers();
     sub.initIcon();
@@ -1042,9 +1048,15 @@ var sub = {
     config.general.fnswitch.fnctm && chrome.contextMenus ? sub.initCTM() : null;
   },
   initEvent: function () {
+    // Check if config is properly initialized
+    if (!config || !config.mges || !config.mges.actions) {
+      console.warn("Config not initialized in initEvent");
+      return;
+    }
+    
     for (
       let i = 0;
-      config.mges && config.mges.actions && i < config.mges.actions.length;
+      i < config.mges.actions.length;
       i++
     ) {
       if (
@@ -1064,12 +1076,20 @@ var sub = {
     onTabsRemoved: function (info) {},
   },
   initIcon: function () {
+    // Check if config is properly initialized
+    if (!config || !config.general || !config.general.fnswitch) {
+      console.warn("Config not initialized in initIcon, using default popup");
+      chrome.action.setPopup({ popup: "../html/popup.html" });
+      chrome.action.setTitle({ title: sub.getI18n("ext_name") });
+      return;
+    }
+    
     if (config.general.fnswitch.fnicon) {
       chrome.action.setPopup({ popup: "" });
-      if (config.icon.settings.tip) {
+      if (config.icon && config.icon.settings && config.icon.settings.tip) {
         chrome.action.setTitle({
           title:
-            config.icon.actions[0].mydes &&
+            config.icon.actions && config.icon.actions[0] && config.icon.actions[0].mydes &&
             config.icon.actions[0].mydes.type &&
             config.icon.actions[0].mydes.value
               ? config.icon.actions[0].mydes.value
@@ -1083,6 +1103,12 @@ var sub = {
   },
   initCTM: function () {
     chrome.contextMenus.removeAll(function () {
+      // Check if config is properly initialized
+      if (!config || !config.general || !config.general.fnswitch) {
+        console.warn("Config not initialized in initCTM");
+        return;
+      }
+      
       if (!config.general.fnswitch.fnctm) {
         return;
       }
@@ -6041,18 +6067,20 @@ if (!chrome.runtime.onInstalled) {
             }
           }
         }
-        for (var i in config.general.engine.imgengine) {
-          // if(config.general.engine.imgengine[i].content=="https://www.google.com/searchbyimage?image_url=%s"){
-          // 	config.general.engine.imgengine[i].content="https://lens.google.com/uploadbyurl?url=%s";
-          // 	sub.saveConf();
-          // }else
-          if (
-            config.general.engine.imgengine[i].content ==
-            "https://www.bing.com/images/searchbyimage?&imgurl=%s"
-          ) {
-            config.general.engine.imgengine[i].content =
-              "https://www.bing.com/images/search?q=imgurl:%s";
-            sub.saveConf();
+        if (config && config.general && config.general.engine && config.general.engine.imgengine) {
+          for (var i in config.general.engine.imgengine) {
+            // if(config.general.engine.imgengine[i].content=="https://www.google.com/searchbyimage?image_url=%s"){
+            // 	config.general.engine.imgengine[i].content="https://lens.google.com/uploadbyurl?url=%s";
+            // 	sub.saveConf();
+            // }else
+            if (
+              config.general.engine.imgengine[i].content ==
+              "https://www.bing.com/images/searchbyimage?&imgurl=%s"
+            ) {
+              config.general.engine.imgengine[i].content =
+                "https://www.bing.com/images/search?q=imgurl:%s";
+              sub.saveConf();
+            }
           }
         }
         chrome.storage.sync.get(function (items) {
@@ -6192,8 +6220,11 @@ loadConfig();
 //browsersettings
 if (chrome.browserSettings && chrome.browserSettings.contextMenuShowEvent) {
   browser.browserSettings.contextMenuShowEvent.set({ value: "mouseup" });
-  config.general.linux.cancelmenu = false;
-  sub.saveConf();
+  // Wait for config to be loaded before accessing it
+  if (config && config.general && config.general.linux) {
+    config.general.linux.cancelmenu = false;
+    sub.saveConf();
+  }
 } else if (
   browserType == "fx" &&
   (sub.cons.os == "linux" || sub.cons.os == "mac")
