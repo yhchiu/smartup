@@ -53,10 +53,26 @@ var sup={
 		window.close();
 	},
 	initUI:function(){
+		// Check if config and its properties exist before accessing them
+		if(!config || !config.general || !config.general.fnswitch){
+			console.warn("Config not properly initialized, hiding action menu");
+			document.querySelector("[data-menu=action]").style.cssText+="display:none;";
+			document.querySelector(".menu_line").style.cssText+="display:none;";
+			return;
+		}
+		
 		if(!config.general.fnswitch.fnpop){
 			document.querySelector("[data-menu=action]").style.cssText+="display:none;";
 			document.querySelector(".menu_line").style.cssText+="display:none;";
 		}else{
+			// Check if config.pop and config.pop.actions exist
+			if(!config.pop || !config.pop.actions){
+				console.warn("Pop actions config not found, hiding action menu");
+				document.querySelector("[data-menu=action]").style.cssText+="display:none;";
+				document.querySelector(".menu_line").style.cssText+="display:none;";
+				return;
+			}
+			
 			var dom=document.querySelector("[data-menu=action]>select");
 			var _config=config.pop.actions;
 			for(var i=0;i<_config.length;i++){
@@ -114,11 +130,25 @@ var sup={
 	},
 }
 chrome.runtime.sendMessage({type:"pop_getconf"},function(response){
-	if(response){
+	if(response && response.config){
 		console.log(response)
 		config=response.config;
 		_OS=response.os;
 		devMode=response.devMode;
+		sup.init();
+	} else {
+		console.error("Failed to get config from background script:", response);
+		// Initialize with minimal config to prevent errors
+		config = {
+			general: {
+				fnswitch: {
+					fnpop: false
+				}
+			},
+			pop: {
+				actions: []
+			}
+		};
 		sup.init();
 	}
 })
