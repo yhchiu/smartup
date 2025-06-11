@@ -12,6 +12,15 @@ let devMode,
 	extDisable=false,
 	appType={},
 	extID="jialbkkmibnohldjdhbdckemnpdpngeb";
+
+// Configuration loading state management
+var configLoadState = {
+	isLoading: false,
+	retryCount: 0,
+	maxRetries: 3,
+	retryDelay: 1000,
+	isInitialized: false
+};
 	
 
 //check browser
@@ -29,6 +38,199 @@ if(browserType!="cr"){
 // Global flag to track extension context validity
 var extensionContextValid = true;
 var extensionContextNotificationShown = false;
+
+// Complete configuration loading solution
+function loadConfigWithRetry() {
+	if (configLoadState.isLoading) {
+		return; // Already loading, prevent duplicate requests
+	}
+	
+	if (!extensionContextValid || !checkExtensionContext()) {
+		console.warn("Extension context invalid, cannot load config");
+		return;
+	}
+	
+	configLoadState.isLoading = true;
+	
+	chrome.runtime.sendMessage(extID, {type: "evt_getconf"}, function(response) {
+		configLoadState.isLoading = false;
+		
+		// Check for runtime errors
+		if (chrome.runtime.lastError) {
+			handleConfigLoadError(chrome.runtime.lastError.message);
+			return;
+		}
+		
+		if (response && response.config && response.config.general) {
+			// Success: config loaded properly
+			config = response.config;
+			devMode = response.devMode;
+			sue.cons.os = response.os;
+			configLoadState.retryCount = 0;
+			configLoadState.isInitialized = true;
+			
+			console.log("Config loaded successfully");
+			sue.init();
+		} else {
+			handleConfigLoadError("Invalid or incomplete config response");
+		}
+	});
+}
+
+function handleConfigLoadError(errorMessage) {
+	console.warn("Config load error:", errorMessage);
+	
+	// If it's an extension context error, mark as invalid
+	if (errorMessage.includes("Extension context invalidated")) {
+		if (extensionContextValid) {
+			extensionContextValid = false;
+			showExtensionContextNotification();
+		}
+		return;
+	}
+	
+	// Retry if we haven't exceeded max retries
+	if (configLoadState.retryCount < configLoadState.maxRetries) {
+		configLoadState.retryCount++;
+		console.log(`Retrying config load (${configLoadState.retryCount}/${configLoadState.maxRetries})...`);
+		
+		setTimeout(() => {
+			loadConfigWithRetry();
+		}, configLoadState.retryDelay * configLoadState.retryCount); // Exponential backoff
+	} else {
+		console.error("Failed to load config after", configLoadState.maxRetries, "retries");
+		
+		// Try to use fallback config or show recovery options
+		tryFallbackConfig();
+	}
+}
+
+function tryFallbackConfig() {
+	// Try to get cached config from localStorage
+	try {
+		const cachedConfig = localStorage.getItem('smartup_backup_config');
+		if (cachedConfig) {
+			const parsedConfig = JSON.parse(cachedConfig);
+			if (parsedConfig && parsedConfig.general) {
+				console.log("Using cached fallback config");
+				config = parsedConfig;
+				sue.init();
+				return;
+			}
+		}
+	} catch (e) {
+		console.warn("Failed to load cached config:", e);
+	}
+	
+	// If no fallback available, create minimal config to prevent errors
+	config = {
+		general: {
+			fnswitch: {
+				fnmges: false,
+				fnrges: false,
+				fnwges: false,
+				fndrg: false,
+				fnsdrg: false,
+				fntouch: false,
+				fnpop: false,
+				fnicon: false,
+				fnctm: false,
+				fndca: false,
+				fnksa: false
+			},
+			settings: {
+				timeout: false,
+				timeoutvalue: 2000,
+				timeout_nomenu: false,
+				minlength: 10,
+				esc: true
+			},
+			exclusion: {
+				exclusion: false,
+				exclusiontype: "black"
+			},
+			linux: {
+				cancelmenu: false
+			}
+		},
+		mges: {
+			ui: {
+				direct: { enable: false },
+				tip: { enable: false },
+				note: { enable: false }
+			}
+		}
+	};
+	
+	console.warn("Using minimal fallback config - extension functionality will be limited");
+	showExtensionRecoveryNotification();
+}
+
+function showExtensionRecoveryNotification() {
+	if (extensionContextNotificationShown) {
+		return;
+	}
+	extensionContextNotificationShown = true;
+	
+	const notification = document.createElement('div');
+	notification.style.cssText = `
+		position: fixed;
+		top: 20px;
+		right: 20px;
+		background: #f44336;
+		color: white;
+		padding: 15px 20px;
+		border-radius: 8px;
+		box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+		z-index: 2147483647;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+		font-size: 14px;
+		line-height: 1.4;
+		max-width: 350px;
+	`;
+	
+	notification.innerHTML = `
+		<div style="display: flex; align-items: center; gap: 10px;">
+			<div style="flex: 1;">
+				<div style="font-weight: bold; margin-bottom: 5px;">SmartUp Configuration Error</div>
+				<div style="font-size: 13px; opacity: 0.9;">Failed to load extension settings. Please reload the page to restore full functionality.</div>
+			</div>
+			<div style="display: flex; gap: 8px; align-items: center;">
+				<button onclick="location.reload()" style="
+					background: rgba(255,255,255,0.2);
+					border: 1px solid rgba(255,255,255,0.3);
+					color: white;
+					padding: 6px 12px;
+					border-radius: 4px;
+					font-size: 12px;
+					cursor: pointer;
+				">Reload</button>
+				<button onclick="this.parentElement.parentElement.parentElement.remove()" style="
+					background: none;
+					border: none;
+					color: white;
+					font-size: 18px;
+					cursor: pointer;
+					opacity: 0.7;
+					padding: 2px;
+				">×</button>
+			</div>
+		</div>
+	`;
+	
+	document.body.appendChild(notification);
+}
+
+// Save config to localStorage as backup
+function backupConfigToLocal() {
+	if (config && config.general) {
+		try {
+			localStorage.setItem('smartup_backup_config', JSON.stringify(config));
+		} catch (e) {
+			console.warn("Failed to backup config to localStorage:", e);
+		}
+	}
+}
 
 // Cache i18n strings early when extension context is still valid
 var cachedI18nStrings = {
@@ -247,6 +449,15 @@ var sue={
 		}
 		
 		!devMode && (console.log = () => {});
+
+		// Add safety check for config.general before accessing it
+		if (!config || !config.general) {
+			console.warn("Config not loaded properly, skipping initialization");
+			return;
+		}
+
+		// Backup config to localStorage for future fallback use
+		backupConfigToLocal();
 
 		if (config.general.exclusion?.exclusion && sue.exclusionMatch(config.general.exclusion.exclusiontype)) {
 			console.log("dddd");
@@ -1249,6 +1460,15 @@ var sue={
 			return;
 		}
 		
+		// If config is not properly loaded, try to reload it
+		if (!config || !config.general) {
+			console.warn("Config not available in sendDir, attempting to reload...");
+			if (!configLoadState.isLoading) {
+				loadConfigWithRetry();
+			}
+			return;
+		}
+		
 		try {
 		chrome.runtime.sendMessage(extID,{type:dirType,direct:dir,drawType:sue.drawType,selEle:sue.selEle},function(response){
 				// Check for runtime errors
@@ -1332,33 +1552,5 @@ chrome.runtime.onMessage.addListener(function(message,sender,sendResponse) {
 		console.warn("Error in message listener:", error.message);
 	}
 });
-// Check if extension context is still valid before sending message
-if (extensionContextValid && checkExtensionContext()) {
-	try {
-chrome.runtime.sendMessage(extID,{type:"evt_getconf"},function(response){
-			// Check for runtime errors
-			if (chrome.runtime.lastError) {
-				// Extension context has been invalidated, mark it and show notification
-				if (chrome.runtime.lastError.message.includes("Extension context invalidated")) {
-					if (extensionContextValid) {
-						extensionContextValid = false;
-						showExtensionContextNotification();
-					}
-					return;
-				}
-				console.warn("Runtime error getting config:", chrome.runtime.lastError.message);
-				return;
-			}
-			
-	if(response){
-		config=response.config;
-		devMode=response.devMode;
-		sue.cons.os=response.os;
-		sue.init();
-	}
-});
-	} catch (error) {
-		// Mark context as invalid and stop
-		extensionContextValid = false;
-	}
-}
+// Initialize configuration loading with complete error handling and retry mechanism
+loadConfigWithRetry();
