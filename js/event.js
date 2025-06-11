@@ -50,6 +50,18 @@ var cachedI18nStrings = {
 	}
 })();
 
+// Safe wrapper for chrome.i18n.getMessage with fallback
+function safeGetI18nMessage(key, fallback) {
+	try {
+		if (chrome.runtime && chrome.runtime.id && chrome.i18n) {
+			return chrome.i18n.getMessage(key) || fallback || key;
+		}
+		return fallback || key;
+	} catch (error) {
+		return fallback || key;
+	}
+}
+
 // Safely get extension ID
 try {
 	extID = chrome.runtime && chrome.runtime.id ? chrome.runtime.id : null;
@@ -538,7 +550,7 @@ var sue={
 						console.log("ss")
 						break;
 					}
-					if(config.dca.settings.confirm&&!window.confirm(chrome.i18n.getMessage("dca_confirmmessage"))){
+					if(config.dca.settings.confirm&&!window.confirm(safeGetI18nMessage("dca_confirmmessage", "Confirm action"))){
 						break;
 					}
 					if(config.dca.settings.selnothing&&window.getSelection().toString().trim()!=""){
@@ -1281,7 +1293,7 @@ chrome.runtime.onMessage.addListener(function(message,sender,sendResponse) {
 	console.log(message)
 	if(message.type=="set_confirm"){
 		// sendResponse({type:message.type,message:true});
-		if(confirm(chrome.i18n.getMessage("tip_closemulticonfirm"))){
+		if(confirm(safeGetI18nMessage("tip_closemulticonfirm", "You are trying to close multiple tabs. Are you sure you want to continue?"))){
 			sendResponse({type:message.type,message:true});
 		}
 	}
