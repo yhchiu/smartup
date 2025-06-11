@@ -46,7 +46,7 @@ function loadConfigWithRetry() {
 	}
 	
 	if (!extensionContextValid || !checkExtensionContext()) {
-		console.warn("Extension context invalid, cannot load config");
+		console.warn("[smartup] Extension context invalid, cannot load config");
 		return;
 	}
 	
@@ -69,7 +69,7 @@ function loadConfigWithRetry() {
 			configLoadState.retryCount = 0;
 			configLoadState.isInitialized = true;
 			
-			console.log("Config loaded successfully");
+			console.log("[smartup] Config loaded successfully");
 			sue.init();
 		} else {
 			handleConfigLoadError("Invalid or incomplete config response");
@@ -78,7 +78,7 @@ function loadConfigWithRetry() {
 }
 
 function handleConfigLoadError(errorMessage) {
-	console.warn("Config load error:", errorMessage);
+	console.warn("[smartup] Config load error:", errorMessage);
 	
 	// If it's an extension context error, mark as invalid
 	if (errorMessage.includes("Extension context invalidated")) {
@@ -92,13 +92,13 @@ function handleConfigLoadError(errorMessage) {
 	// Retry if we haven't exceeded max retries
 	if (configLoadState.retryCount < configLoadState.maxRetries) {
 		configLoadState.retryCount++;
-		console.log(`Retrying config load (${configLoadState.retryCount}/${configLoadState.maxRetries})...`);
+		console.log(`[smartup] Retrying config load (${configLoadState.retryCount}/${configLoadState.maxRetries})...`);
 		
 		setTimeout(() => {
 			loadConfigWithRetry();
 		}, configLoadState.retryDelay * configLoadState.retryCount); // Exponential backoff
 	} else {
-		console.error("Failed to load config after", configLoadState.maxRetries, "retries");
+		console.error("[smartup] Failed to load config after", configLoadState.maxRetries, "retries");
 		
 		// Try to use fallback config or show recovery options
 		tryFallbackConfig();
@@ -112,14 +112,14 @@ function tryFallbackConfig() {
 		if (cachedConfig) {
 			const parsedConfig = JSON.parse(cachedConfig);
 			if (parsedConfig && parsedConfig.general) {
-				console.log("Using cached fallback config");
+				console.log("[smartup] Using cached fallback config");
 				config = parsedConfig;
 				sue.init();
 				return;
 			}
 		}
 	} catch (e) {
-		console.warn("Failed to load cached config:", e);
+		console.warn("[smartup] Failed to load cached config:", e);
 	}
 	
 	// If no fallback available, create minimal config to prevent errors
@@ -162,7 +162,7 @@ function tryFallbackConfig() {
 		}
 	};
 	
-	console.warn("Using minimal fallback config - extension functionality will be limited");
+	console.warn("[smartup] Using minimal fallback config - extension functionality will be limited");
 	showExtensionRecoveryNotification();
 }
 
@@ -227,7 +227,7 @@ function backupConfigToLocal() {
 		try {
 			localStorage.setItem('smartup_backup_config', JSON.stringify(config));
 		} catch (e) {
-			console.warn("Failed to backup config to localStorage:", e);
+			console.warn("[smartup] Failed to backup config to localStorage:", e);
 		}
 	}
 }
@@ -248,7 +248,7 @@ var cachedI18nStrings = {
 			cachedI18nStrings.reload = chrome.i18n.getMessage("reload") || cachedI18nStrings.reload;
 		}
 	} catch (error) {
-		console.log("Failed to cache i18n strings, using fallback text");
+		console.log("[smartup] Failed to cache i18n strings, using fallback text");
 	}
 })();
 
@@ -271,7 +271,7 @@ try {
 		extensionContextValid = false;
 	}
 } catch (error) {
-	console.warn("Cannot get extension ID:", error.message);
+	console.warn("[smartup] Cannot get extension ID:", error.message);
 	extID = null;
 	extensionContextValid = false;
 }
@@ -452,7 +452,7 @@ var sue={
 
 		// Add safety check for config.general before accessing it
 		if (!config || !config.general) {
-			console.warn("Config not loaded properly, skipping initialization");
+			console.warn("[smartup] Config not loaded properly, skipping initialization");
 			return;
 		}
 
@@ -460,7 +460,7 @@ var sue={
 		backupConfigToLocal();
 
 		if (config.general.exclusion?.exclusion && sue.exclusionMatch(config.general.exclusion.exclusiontype)) {
-			console.log("dddd");
+			console.log("[smartup] Config not loaded properly, skipping initialization");
 			return;
 		}
 
@@ -483,7 +483,7 @@ var sue={
 			document.addEventListener("touchend",this.handleEvent,false);
 		}
 		if(config.general.fnswitch.fnmges||config.general.fnswitch.fnrges||config.general.fnswitch.fnwges){
-			console.log("initHandle")
+			console.log("[smartup] initHandle")
 			document.addEventListener("mousedown",this.handleEvent,false);
 			document.addEventListener("mouseup",this.handleEvent,false);
 			document.addEventListener("mousemove",this.handleEvent,false);
@@ -581,7 +581,7 @@ var sue={
 						sue.inWges=false;//fix firefox, it is click before contextmenu
 					}
 				}
-				if(sue.inDrg&&config.drg.settings.clickcancel){console.log("cancel");sue.break=true;sue.stopMges(e);}
+				if(sue.inDrg&&config.drg.settings.clickcancel){console.log("[smartup] cancel");sue.break=true;sue.stopMges(e);}
 				break;
 			case"keydown":
 				// console.log(e.keyCode);
@@ -602,7 +602,7 @@ var sue={
 				}
 				//fix rges mouseup bug
 				if(!extDisable&&config.general.fnswitch.fnrges){
-					console.log(e.buttons);
+					console.log("[smartup] mouseup",e.buttons);
 					sue.cons.rges_btn=e.button;
 				}
 				break;
@@ -618,7 +618,7 @@ var sue={
 					sue._lastY=e.clientY;
 				}
 				if(!extDisable&&config.general.fnswitch.fnrges&&(e.buttons==1||e.buttons==2)&&(e.button==0||e.button==2)){
-					console.log(e.button+"/"+e.buttons+"/"+sue.cons.rges_btn)
+					console.log("[smartup] mouseup",e.button+"/"+e.buttons+"/"+sue.cons.rges_btn)
 					if(e.button!=sue.cons.rges_btn){break;}//fix mouseup bug
 					sue.inRges=true;
 					var sendValue={
@@ -636,7 +636,7 @@ var sue={
 										}
 										return;
 									}
-									console.warn("Runtime error in rges:", chrome.runtime.lastError.message);
+									console.warn("[smartup] Runtime error in rges:", chrome.runtime.lastError.message);
 								}
 							})
 						} catch (error) {
@@ -755,10 +755,10 @@ var sue={
 				sue.inDrg=false;
 				break;
 			case"dblclick":
-				console.log("sdf");
+				console.log("[smartup] dblclick");
 				if(!editMode){
 					if(!config.dca.settings.box&&(e.target.tagName&&((e.target.tagName.toLowerCase()=="input"&&e.target.type=="text")||e.target.tagName.toLowerCase()=="textarea"))){
-						console.log("ss")
+						console.log("[smartup] dblclick")
 						break;
 					}
 					if(config.dca.settings.confirm&&!window.confirm(safeGetI18nMessage("dca_confirmmessage", "Confirm action"))){
@@ -797,7 +797,7 @@ var sue={
 		const patterns = config.general.exclusion[type];
 		const url = `${window.location.host}${window.location.pathname.replace(/\/$/, "")}`;
 		const regexes = patterns.map(pattern => new RegExp('^' + pattern.replace(/\*/g, '.*') + '$'));
-		console.log(regexes);
+		console.log("[smartup] regexes", regexes);
 		const exclusion= regexes.some(regex => regex.test(url));
 		return type === "black" ? exclusion : !exclusion;
 	},
@@ -837,7 +837,7 @@ var sue={
 											}
 											return;
 										}
-										console.warn("Runtime error in ksa:", chrome.runtime.lastError.message);
+										console.warn("[smartup] Runtime error in ksa:", chrome.runtime.lastError.message);
 									}
 								})
 							} catch (error) {
@@ -990,8 +990,8 @@ var sue={
 		sue._dirArray="";
 	},
 	lineDrawReady:function(e,type){
-		console.log("lineDrawReady");
-		console.log(e.target)
+		console.log("[smartup] lineDrawReady");
+		console.log("[smartup] e.target",e.target)
 		//disable drag ,when draggable=true
 		if(config[type].settings.draggable&&e.target.getAttribute&&(e.target.getAttribute("draggable")=="true")){return;}
 		sue._lastX=e.clientX;
@@ -1055,7 +1055,7 @@ var sue={
 				sue.selEle.txt=e.target.value.substring(e.target.selectionStart,e.target.selectionEnd);
 			}
 		}
-		console.log(e.target);
+		console.log("[smartup] e.target",e.target);
 		sue.selEle.lnk=e.href||e.target.href;
 		sue.selEle.img=sue.selEle.img?sue.selEle.img:e.target.src;
 		sue.selEle.str=e.target.innerText;
@@ -1080,7 +1080,7 @@ var sue={
 
 		var ele=e.target;
 		var getParent=function(win){
-			console.log(win);
+			console.log("[smartup] win", win);
 			if(win.parent&&win.parent!=win){
 				return arguments.callee(win.parent);
 			}else{
@@ -1173,7 +1173,7 @@ var sue={
 		sue._lastY=e.clientY;
 	},
 	UI:function(style){
-		console.log(style)
+		console.log("[smartup] style", style)
 		var domui=sue.document.querySelector("div[data-suui=uibox][data-sustyle="+style+"]");
 		if(!domui){
 			domui=document.createElement("div");
@@ -1390,7 +1390,7 @@ var sue={
 						+"top:"+(e.clientY+30)+"px"
 					break;
 				case"center":
-					console.log("center")
+					console.log("[smartup] center")
 					domUIs[i].style.cssText+="left:"+domWidth+"px;"
 						+"top:"+domHeight+"px;";
 					break;
@@ -1423,7 +1423,7 @@ var sue={
 		sue.drawing=false;
 	},
 	stopMges:function(e){
-		console.log("stop")
+		console.log("[smartup] stop")
 		if(sue.break){
 			sue.clearUI();
 			sue.break=false;
@@ -1462,7 +1462,7 @@ var sue={
 		
 		// If config is not properly loaded, try to reload it
 		if (!config || !config.general) {
-			console.warn("Config not available in sendDir, attempting to reload...");
+			console.warn("[smartup] Config not available in sendDir, attempting to reload...");
 			if (!configLoadState.isLoading) {
 				loadConfigWithRetry();
 			}
@@ -1481,7 +1481,7 @@ var sue={
 						}
 						return;
 					}
-					console.warn("Runtime error in sendDir:", chrome.runtime.lastError.message);
+					console.warn("[smartup] Runtime error in sendDir:", chrome.runtime.lastError.message);
 					return;
 				}
 				
@@ -1510,7 +1510,7 @@ var sue={
 }
 chrome.runtime.onMessage.addListener(function(message,sender,sendResponse) {
 	try {
-	console.log(message)
+	console.log("[smartup] message",message)
 	if(message.type=="set_confirm"){
 		// sendResponse({type:message.type,message:true});
 		if(confirm(safeGetI18nMessage("tip_closemulticonfirm", "You are trying to close multiple tabs. Are you sure you want to continue?"))){
@@ -1529,7 +1529,7 @@ chrome.runtime.onMessage.addListener(function(message,sender,sendResponse) {
 				sue.selEle.txt=e.target.value.substring(e.target.selectionStart,e.target.selectionEnd);
 			}
 		}
-		console.log(sue.selEle)
+		console.log("[smartup] selEle",sue.selEle)
 		sendResponse({type:"action_"+message.type,selEle:sue.selEle});
 	}
 	if(message.type=="extdisable"){
@@ -1549,7 +1549,7 @@ chrome.runtime.onMessage.addListener(function(message,sender,sendResponse) {
 			break;
 		}
 	} catch (error) {
-		console.warn("Error in message listener:", error.message);
+		console.warn("[smartup] Error in message listener:", error.message);
 	}
 });
 // Initialize configuration loading with complete error handling and retry mechanism
