@@ -1498,5 +1498,11 @@
   },
   "s_incogback":{
     "message":"Инкогнито (в фоне)"
+  },
+  "extension_updated":{
+    "message":"Расширение SmartUp обновлено"
+  },
+  "extension_updated_desc":{
+    "message":"Пожалуйста, перезагрузите эту страницу, чтобы восстановить функции жестов"
   }
 }

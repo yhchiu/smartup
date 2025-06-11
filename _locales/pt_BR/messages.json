@@ -1891,5 +1891,11 @@
    },
    "zoom_dep": {
          "message": "Zoom"
+   },
+   "extension_updated":{
+     "message":"Extensão SmartUp Atualizada"
+   },
+   "extension_updated_desc":{
+     "message":"Por favor, recarregue esta página para restaurar a funcionalidade de gestos"
    }
 }

@@ -1408,5 +1408,11 @@
   },
   "ext_allver":{
     "message":"All versions:"
+  },
+  "extension_updated":{
+    "message":"SmartUp 擴充功能已更新"
+  },
+  "extension_updated_desc":{
+    "message":"請重新載入此頁面以恢復手勢功能"
   }
 }

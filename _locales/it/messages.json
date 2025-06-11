@@ -1408,5 +1408,11 @@
   },
   "ext_allver":{
     "message":"All versions:"
+  },
+  "extension_updated":{
+    "message":"Estensione SmartUp Aggiornata"
+  },
+  "extension_updated_desc":{
+    "message":"Ricarica questa pagina per ripristinare la funzionalità dei gesti"
   }
 }

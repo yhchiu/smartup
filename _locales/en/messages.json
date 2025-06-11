@@ -1835,5 +1835,11 @@
   },
   "tip_exclusion_repeat":{
     "message":"The match URL repeated."
+  },
+  "extension_updated":{
+    "message":"SmartUp Extension Updated"
+  },
+  "extension_updated_desc":{
+    "message":"Please reload this page to restore gesture functionality"
   }
 }

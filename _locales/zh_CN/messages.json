@@ -1810,5 +1810,11 @@
   },
   "tip_exclusion_repeat":{
    "message":"匹配网址重复。"
+  },
+  "extension_updated":{
+    "message":"SmartUp 扩展已更新"
+  },
+  "extension_updated_desc":{
+    "message":"请重新加载此页面以恢复手势功能"
   }
 }

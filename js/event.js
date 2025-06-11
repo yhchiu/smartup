@@ -26,7 +26,190 @@ if(browserType!="cr"){
 	chrome=browser;
 }
 
-extID=chrome.runtime.id;
+// Global flag to track extension context validity
+var extensionContextValid = true;
+var extensionContextNotificationShown = false;
+
+// Cache i18n strings early when extension context is still valid
+var cachedI18nStrings = {
+	extensionUpdated: "SmartUp Extension Updated",
+	extensionUpdatedDesc: "Please reload this page to restore gesture functionality", 
+	reload: "Reload"
+};
+
+// Initialize i18n cache immediately
+(function initI18nCache() {
+	try {
+		if (chrome.runtime && chrome.runtime.id && chrome.i18n) {
+			cachedI18nStrings.extensionUpdated = chrome.i18n.getMessage("extension_updated") || cachedI18nStrings.extensionUpdated;
+			cachedI18nStrings.extensionUpdatedDesc = chrome.i18n.getMessage("extension_updated_desc") || cachedI18nStrings.extensionUpdatedDesc;
+			cachedI18nStrings.reload = chrome.i18n.getMessage("reload") || cachedI18nStrings.reload;
+		}
+	} catch (error) {
+		console.log("Failed to cache i18n strings, using fallback text");
+	}
+})();
+
+// Safely get extension ID
+try {
+	extID = chrome.runtime && chrome.runtime.id ? chrome.runtime.id : null;
+	if (!extID) {
+		extensionContextValid = false;
+	}
+} catch (error) {
+	console.warn("Cannot get extension ID:", error.message);
+	extID = null;
+	extensionContextValid = false;
+}
+
+// Function to show user notification when extension context is invalidated
+function showExtensionContextNotification() {
+	if (extensionContextNotificationShown) {
+		return; // Only show once per page load
+	}
+	extensionContextNotificationShown = true;
+
+	// Create notification element
+	const notification = document.createElement('div');
+	notification.style.cssText = `
+		position: fixed;
+		top: 20px;
+		right: 20px;
+		background: #ff9800;
+		color: white;
+		padding: 15px 20px;
+		border-radius: 8px;
+		box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+		z-index: 2147483647;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+		font-size: 14px;
+		line-height: 1.4;
+		max-width: 350px;
+		animation: slideInRight 0.3s ease-out;
+	`;
+
+	// Add animation keyframes
+	if (!document.getElementById('smartup-notification-style')) {
+		const style = document.createElement('style');
+		style.id = 'smartup-notification-style';
+		style.textContent = `
+			@keyframes slideInRight {
+				from { transform: translateX(100%); opacity: 0; }
+				to { transform: translateX(0); opacity: 1; }
+			}
+			@keyframes slideOutRight {
+				from { transform: translateX(0); opacity: 1; }
+				to { transform: translateX(100%); opacity: 0; }
+			}
+		`;
+		document.head.appendChild(style);
+	}
+
+	// Use cached i18n strings (fetched when extension context was valid)
+	const titleText = cachedI18nStrings.extensionUpdated;
+	const descText = cachedI18nStrings.extensionUpdatedDesc;
+	const reloadText = cachedI18nStrings.reload;
+
+	notification.innerHTML = `
+		<div style="display: flex; align-items: center; gap: 10px;">
+			<div style="flex: 1;">
+				<div style="font-weight: bold; margin-bottom: 5px;">${titleText}</div>
+				<div style="font-size: 13px; opacity: 0.9;">${descText}</div>
+			</div>
+			<div style="display: flex; gap: 8px; align-items: center;">
+				<button id="smartup-reload-btn" style="
+					background: rgba(255,255,255,0.2);
+					border: 1px solid rgba(255,255,255,0.3);
+					color: white;
+					padding: 6px 12px;
+					border-radius: 4px;
+					font-size: 12px;
+					cursor: pointer;
+					transition: background 0.2s;
+				">${reloadText}</button>
+				<button id="smartup-close-btn" style="
+					background: none;
+					border: none;
+					color: white;
+					font-size: 18px;
+					cursor: pointer;
+					opacity: 0.7;
+					padding: 2px;
+					line-height: 1;
+				">×</button>
+			</div>
+		</div>
+	`;
+
+	document.body.appendChild(notification);
+
+	// Add button event listeners
+	const reloadBtn = notification.querySelector('#smartup-reload-btn');
+	const closeBtn = notification.querySelector('#smartup-close-btn');
+
+	reloadBtn.addEventListener('click', () => {
+		location.reload();
+	});
+
+	reloadBtn.addEventListener('mouseover', () => {
+		reloadBtn.style.background = 'rgba(255,255,255,0.3)';
+	});
+
+	reloadBtn.addEventListener('mouseout', () => {
+		reloadBtn.style.background = 'rgba(255,255,255,0.2)';
+	});
+
+	closeBtn.addEventListener('click', () => {
+		notification.style.animation = 'slideOutRight 0.3s ease-in';
+		setTimeout(() => {
+			if (notification.parentNode) {
+				notification.parentNode.removeChild(notification);
+			}
+		}, 300);
+	});
+
+	closeBtn.addEventListener('mouseover', () => {
+		closeBtn.style.opacity = '1';
+	});
+
+	closeBtn.addEventListener('mouseout', () => {
+		closeBtn.style.opacity = '0.7';
+	});
+
+	// Auto-dismiss after 10 seconds
+	setTimeout(() => {
+		if (notification.parentNode) {
+			notification.style.animation = 'slideOutRight 0.3s ease-in';
+			setTimeout(() => {
+				if (notification.parentNode) {
+					notification.parentNode.removeChild(notification);
+				}
+			}, 300);
+		}
+	}, 10000);
+}
+
+// Function to check and update extension context validity
+function checkExtensionContext() {
+	try {
+		if (!chrome.runtime || !chrome.runtime.id) {
+			if (extensionContextValid) {
+				// Context just became invalid, show notification
+				extensionContextValid = false;
+				showExtensionContextNotification();
+			}
+			return false;
+		}
+		return true;
+	} catch (error) {
+		if (extensionContextValid) {
+			// Context just became invalid, show notification
+			extensionContextValid = false;
+			showExtensionContextNotification();
+		}
+		return false;
+	}
+}
 
 var sue={
 	cons:{
@@ -46,6 +229,11 @@ var sue={
 		}
 	},
 	init:function(){
+		// Don't initialize if extension context is invalid
+		if (!extensionContextValid) {
+			return;
+		}
+		
 		!devMode && (console.log = () => {});
 
 		if (config.general.exclusion?.exclusion && sue.exclusionMatch(config.general.exclusion.exclusiontype)) {
@@ -104,6 +292,11 @@ var sue={
 		sue.document.addEventListener("contextmenu",this.handleEvent,false);
 	},
 	handleEvent:function(e){
+		// Don't handle events if extension context is invalid
+		if (!extensionContextValid) {
+			return;
+		}
+		
 		switch(e.type){
 			case"touchstart":
 				if(!config.general.fnswitch.fntouch){return;}
@@ -134,7 +327,17 @@ var sue={
 						wheelDelta:e.deltaY
 					}
 
+					// Check extension context before sending message
+					if (extensionContextValid && checkExtensionContext()) {
+						try {
 					chrome.runtime.sendMessage(extID,{type:"action_wges",sendValue:sendValue,selEle:sue.selEle})
+						} catch (error) {
+							if (extensionContextValid) {
+								extensionContextValid = false;
+								showExtensionContextNotification();
+							}
+						}
+					}
 					// e.preventDefault();
 				}
 				break;
@@ -198,7 +401,28 @@ var sue={
 					var sendValue={
 						buttons:e.buttons
 					}
-					chrome.runtime.sendMessage(extID,{type:"action_rges",sendValue:sendValue,selEle:sue.selEle},function(response){})
+					// Check extension context before sending message
+					if (extensionContextValid && checkExtensionContext()) {
+						try {
+							chrome.runtime.sendMessage(extID,{type:"action_rges",sendValue:sendValue,selEle:sue.selEle},function(response){
+								if (chrome.runtime.lastError) {
+									if (chrome.runtime.lastError.message.includes("Extension context invalidated")) {
+										if (extensionContextValid) {
+											extensionContextValid = false;
+											showExtensionContextNotification();
+										}
+										return;
+									}
+									console.warn("Runtime error in rges:", chrome.runtime.lastError.message);
+								}
+							})
+						} catch (error) {
+							if (extensionContextValid) {
+								extensionContextValid = false;
+								showExtensionContextNotification();
+							}
+						}
+					}
 				}
 				break;
 			case"contextmenu":
@@ -331,7 +555,17 @@ var sue={
 						){
 						break;
 					}
+					// Check extension context before sending message
+					if (extensionContextValid && checkExtensionContext()) {
+						try {
 					chrome.runtime.sendMessage(extID,{type:"action_dca",sendValue:sendValue,selEle:sue.selEle});
+						} catch (error) {
+							if (extensionContextValid) {
+								extensionContextValid = false;
+								showExtensionContextNotification();
+							}
+						}
+					}
 				}	
 				break;
 		}
@@ -368,7 +602,28 @@ var sue={
 					&&key.shift==config.ksa.actions[i].shift
 					&&key.codes.toString()==config.ksa.actions[i].codes.toString()){
 						var selEle={txt:window.getSelection().toString()}
-						chrome.runtime.sendMessage(extID,{type:"action_ksa",selEle:selEle,id:i},function(response){})
+						// Check extension context before sending message
+						if (extensionContextValid && checkExtensionContext()) {
+							try {
+								chrome.runtime.sendMessage(extID,{type:"action_ksa",selEle:selEle,id:i},function(response){
+									if (chrome.runtime.lastError) {
+										if (chrome.runtime.lastError.message.includes("Extension context invalidated")) {
+											if (extensionContextValid) {
+												extensionContextValid = false;
+												showExtensionContextNotification();
+											}
+											return;
+										}
+										console.warn("Runtime error in ksa:", chrome.runtime.lastError.message);
+									}
+								})
+							} catch (error) {
+								if (extensionContextValid) {
+									extensionContextValid = false;
+									showExtensionContextNotification();
+								}
+							}
+						}
 						break;
 				}
 			}
@@ -974,7 +1229,30 @@ var sue={
 	},
 	sendDir:function(dir,dirType,e){
 		var returnValue;
+		
+		// Check if extension context is still valid
+		if (!extensionContextValid || !checkExtensionContext()) {
+			// Silently fail when extension context is invalidated
+			// This prevents console spam when extension is reloaded
+			return;
+		}
+		
+		try {
 		chrome.runtime.sendMessage(extID,{type:dirType,direct:dir,drawType:sue.drawType,selEle:sue.selEle},function(response){
+				// Check for runtime errors
+				if (chrome.runtime.lastError) {
+					// Extension context has been invalidated, mark it and show notification
+					if (chrome.runtime.lastError.message.includes("Extension context invalidated")) {
+						if (extensionContextValid) {
+							extensionContextValid = false;
+							showExtensionContextNotification();
+						}
+						return;
+					}
+					console.warn("Runtime error in sendDir:", chrome.runtime.lastError.message);
+					return;
+				}
+				
   			returnValue=response;
   			sue.getedConf=returnValue;
   			if(!response){return false;}
@@ -989,9 +1267,17 @@ var sue={
   					break;
   			}
 		});
+		} catch (error) {
+			// Mark context as invalid and show notification on any error
+			if (extensionContextValid) {
+				extensionContextValid = false;
+				showExtensionContextNotification();
+			}
+		}
 	}
 }
 chrome.runtime.onMessage.addListener(function(message,sender,sendResponse) {
+	try {
 	console.log(message)
 	if(message.type=="set_confirm"){
 		// sendResponse({type:message.type,message:true});
@@ -1029,9 +1315,29 @@ chrome.runtime.onMessage.addListener(function(message,sender,sendResponse) {
 		case"actionPaste":
 			sue.startEle.value+=message.value.paste;
 			break;
+		}
+	} catch (error) {
+		console.warn("Error in message listener:", error.message);
 	}
 });
+// Check if extension context is still valid before sending message
+if (extensionContextValid && checkExtensionContext()) {
+	try {
 chrome.runtime.sendMessage(extID,{type:"evt_getconf"},function(response){
+			// Check for runtime errors
+			if (chrome.runtime.lastError) {
+				// Extension context has been invalidated, mark it and show notification
+				if (chrome.runtime.lastError.message.includes("Extension context invalidated")) {
+					if (extensionContextValid) {
+						extensionContextValid = false;
+						showExtensionContextNotification();
+					}
+					return;
+				}
+				console.warn("Runtime error getting config:", chrome.runtime.lastError.message);
+				return;
+			}
+			
 	if(response){
 		config=response.config;
 		devMode=response.devMode;
@@ -1039,3 +1345,8 @@ chrome.runtime.sendMessage(extID,{type:"evt_getconf"},function(response){
 		sue.init();
 	}
 });
+	} catch (error) {
+		// Mark context as invalid and stop
+		extensionContextValid = false;
+	}
+}
