@@ -2101,15 +2101,55 @@ var sub = {
             "new"
           )[0],
           thePin = sub.getConfValue("checks", "n_pin");
-        var theURL,
-          clipOBJ = document.body.appendChild(
-            document.createElement("textarea")
-          );
-        clipOBJ.focus();
-        document.execCommand("paste");
-        theURL = clipOBJ.value;
-        clipOBJ.remove();
-        sub.open(theURL, theTarget, theIndex, thePin);
+        // Use modern Clipboard API instead of DOM manipulation
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          navigator.clipboard.readText().then(theURL => {
+            sub.open(theURL, theTarget, theIndex, thePin);
+          }).catch(err => {
+            console.error('Failed to read clipboard for paste URL: ', err);
+            // Fallback to content script execution
+            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+              if (tabs[0]) {
+                chrome.scripting.executeScript({
+                  target: {tabId: tabs[0].id},
+                  func: () => {
+                    const clipOBJ = document.body.appendChild(document.createElement("textarea"));
+                    clipOBJ.focus();
+                    document.execCommand("paste");
+                    const theURL = clipOBJ.value;
+                    clipOBJ.remove();
+                    return theURL;
+                  }
+                }, (results) => {
+                  if (results && results[0] && results[0].result) {
+                    sub.open(results[0].result, theTarget, theIndex, thePin);
+                  }
+                });
+              }
+            });
+          });
+        } else {
+          // Fallback for older browsers
+          chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            if (tabs[0]) {
+              chrome.scripting.executeScript({
+                target: {tabId: tabs[0].id},
+                func: () => {
+                  const clipOBJ = document.body.appendChild(document.createElement("textarea"));
+                  clipOBJ.focus();
+                  document.execCommand("paste");
+                  const theURL = clipOBJ.value;
+                  clipOBJ.remove();
+                  return theURL;
+                }
+              }, (results) => {
+                if (results && results[0] && results[0].result) {
+                  sub.open(results[0].result, theTarget, theIndex, thePin);
+                }
+              });
+            }
+          });
+        }
       };
       var thepers = ["clipboardRead"];
       var theorgs;
@@ -2204,24 +2244,58 @@ var sub = {
           function (tabs) {
             var cptarget = tabs[0];
             var cpcontent = sub.getConfValue("selects", "n_copytabele_content");
-            var clipOBJ = document.body.appendChild(
-              document.createElement("textarea")
-            );
+            let textToCopy = "";
             switch (cpcontent) {
               case "s_tabele_title":
-                clipOBJ.value = cptarget.title;
+                textToCopy = cptarget.title;
                 break;
               case "s_tabele_url":
-                clipOBJ.value = cptarget.url;
+                textToCopy = cptarget.url;
                 break;
               case "s_tabele_aslnk":
-                clipOBJ.value =
-                  '<a href="' + cptarget.url + '">' + cptarget.title + "</a>";
+                textToCopy = '<a href="' + cptarget.url + '">' + cptarget.title + "</a>";
                 break;
             }
-            clipOBJ.select();
-            document.execCommand("copy");
-            clipOBJ.remove();
+            
+            // Use modern Clipboard API instead of DOM manipulation
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(textToCopy).catch(err => {
+                console.error('Failed to copy tab element: ', err);
+                // Fallback to content script execution
+                chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                  if (tabs[0]) {
+                    chrome.scripting.executeScript({
+                      target: {tabId: tabs[0].id},
+                      func: (text) => {
+                        const clipOBJ = document.body.appendChild(document.createElement("textarea"));
+                        clipOBJ.value = text;
+                        clipOBJ.select();
+                        document.execCommand("copy");
+                        clipOBJ.remove();
+                      },
+                      args: [textToCopy]
+                    });
+                  }
+                });
+              });
+            } else {
+              // Fallback for older browsers
+              chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                if (tabs[0]) {
+                  chrome.scripting.executeScript({
+                    target: {tabId: tabs[0].id},
+                    func: (text) => {
+                      const clipOBJ = document.body.appendChild(document.createElement("textarea"));
+                      clipOBJ.value = text;
+                      clipOBJ.select();
+                      document.execCommand("copy");
+                      clipOBJ.remove();
+                    },
+                    args: [textToCopy]
+                  });
+                }
+              });
+            }
           }
         );
       };
@@ -2377,13 +2451,45 @@ var sub = {
         return;
       }
       var theFunction = function () {
-        var clipOBJ = document.body.appendChild(
-          document.createElement("textarea")
-        );
-        clipOBJ.value = sub.message.selEle.txt;
-        clipOBJ.select();
-        document.execCommand("copy");
-        clipOBJ.remove();
+        // Use modern Clipboard API instead of DOM manipulation
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(sub.message.selEle.txt).catch(err => {
+            console.error('Failed to copy text: ', err);
+            // Fallback to content script execution
+            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+              if (tabs[0]) {
+                chrome.scripting.executeScript({
+                  target: {tabId: tabs[0].id},
+                  func: (text) => {
+                    const clipOBJ = document.body.appendChild(document.createElement("textarea"));
+                    clipOBJ.value = text;
+                    clipOBJ.select();
+                    document.execCommand("copy");
+                    clipOBJ.remove();
+                  },
+                  args: [sub.message.selEle.txt]
+                });
+              }
+            });
+          });
+        } else {
+          // Fallback for older browsers or when clipboard API is not available
+          chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            if (tabs[0]) {
+              chrome.scripting.executeScript({
+                target: {tabId: tabs[0].id},
+                func: (text) => {
+                  const clipOBJ = document.body.appendChild(document.createElement("textarea"));
+                  clipOBJ.value = text;
+                  clipOBJ.select();
+                  document.execCommand("copy");
+                  clipOBJ.remove();
+                },
+                args: [sub.message.selEle.txt]
+              });
+            }
+          });
+        }
       };
       var thepers = ["clipboardWrite"];
       var theorgs;
@@ -2428,44 +2534,144 @@ var sub = {
     txtsearchclip: function () {
       console.log("txtsearchclip");
       var theFunction = function () {
-        let _str,
-          _obj = document.body.appendChild(document.createElement("textarea"));
-        _obj.focus();
-        document.execCommand("paste");
-        _str = _obj.value;
-        console.log(_obj);
-        _obj.remove();
-
-        let _url,
-          _txt,
-          _engine = sub.getConfValue("selects", "n_txtengine"),
-          _target = sub.getConfValue("selects", "n_optype"),
-          _code = sub.getConfValue("selects", "n_encoding"),
-          _index = sub.getIndex(
-            sub.getConfValue("selects", "n_position"),
-            "new"
-          )[0],
-          _pin = sub.getConfValue("checks", "n_pin");
-        switch (_code) {
-          case "s_unicode":
-            _txt = escape(_str);
-            break;
-          case "s_uri":
-            _txt = encodeURI(_str);
-            break;
-          case "s_uric":
-            _txt = encodeURIComponent(_str);
-            break;
-          case "s_uricgbk":
-            _txt = GBK.URI.encodeURI(_str);
-            break;
-          default:
-            _txt = _str;
-            break;
+        // Use modern Clipboard API instead of DOM manipulation
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          navigator.clipboard.readText().then(_str => {
+            let _url,
+              _txt,
+              _engine = sub.getConfValue("selects", "n_txtengine"),
+              _target = sub.getConfValue("selects", "n_optype"),
+              _code = sub.getConfValue("selects", "n_encoding"),
+              _index = sub.getIndex(
+                sub.getConfValue("selects", "n_position"),
+                "new"
+              )[0],
+              _pin = sub.getConfValue("checks", "n_pin");
+            switch (_code) {
+              case "s_unicode":
+                _txt = escape(_str);
+                break;
+              case "s_uri":
+                _txt = encodeURI(_str);
+                break;
+              case "s_uric":
+                _txt = encodeURIComponent(_str);
+                break;
+              case "s_uricgbk":
+                _txt = GBK.URI.encodeURI(_str);
+                break;
+              default:
+                _txt = _str;
+                break;
+            }
+            _engine = config.general.engine.txtengine[_engine].content;
+            _url = _engine.replace(/%s/g, _txt);
+            sub.open(_url, _target, _index, _pin);
+          }).catch(err => {
+            console.error('Failed to read clipboard: ', err);
+            // Fallback to content script execution
+            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+              if (tabs[0]) {
+                chrome.scripting.executeScript({
+                  target: {tabId: tabs[0].id},
+                  func: () => {
+                    let _obj = document.body.appendChild(document.createElement("textarea"));
+                    _obj.focus();
+                    document.execCommand("paste");
+                    const _str = _obj.value;
+                    _obj.remove();
+                    return _str;
+                  }
+                }, (results) => {
+                  if (results && results[0] && results[0].result) {
+                    const _str = results[0].result;
+                    let _url,
+                      _txt,
+                      _engine = sub.getConfValue("selects", "n_txtengine"),
+                      _target = sub.getConfValue("selects", "n_optype"),
+                      _code = sub.getConfValue("selects", "n_encoding"),
+                      _index = sub.getIndex(
+                        sub.getConfValue("selects", "n_position"),
+                        "new"
+                      )[0],
+                      _pin = sub.getConfValue("checks", "n_pin");
+                    switch (_code) {
+                      case "s_unicode":
+                        _txt = escape(_str);
+                        break;
+                      case "s_uri":
+                        _txt = encodeURI(_str);
+                        break;
+                      case "s_uric":
+                        _txt = encodeURIComponent(_str);
+                        break;
+                      case "s_uricgbk":
+                        _txt = GBK.URI.encodeURI(_str);
+                        break;
+                      default:
+                        _txt = _str;
+                        break;
+                    }
+                    _engine = config.general.engine.txtengine[_engine].content;
+                    _url = _engine.replace(/%s/g, _txt);
+                    sub.open(_url, _target, _index, _pin);
+                  }
+                });
+              }
+            });
+          });
+        } else {
+          // Fallback for older browsers
+          chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            if (tabs[0]) {
+              chrome.scripting.executeScript({
+                target: {tabId: tabs[0].id},
+                func: () => {
+                  let _obj = document.body.appendChild(document.createElement("textarea"));
+                  _obj.focus();
+                  document.execCommand("paste");
+                  const _str = _obj.value;
+                  _obj.remove();
+                  return _str;
+                }
+              }, (results) => {
+                if (results && results[0] && results[0].result) {
+                  const _str = results[0].result;
+                  let _url,
+                    _txt,
+                    _engine = sub.getConfValue("selects", "n_txtengine"),
+                    _target = sub.getConfValue("selects", "n_optype"),
+                    _code = sub.getConfValue("selects", "n_encoding"),
+                    _index = sub.getIndex(
+                      sub.getConfValue("selects", "n_position"),
+                      "new"
+                    )[0],
+                    _pin = sub.getConfValue("checks", "n_pin");
+                  switch (_code) {
+                    case "s_unicode":
+                      _txt = escape(_str);
+                      break;
+                    case "s_uri":
+                      _txt = encodeURI(_str);
+                      break;
+                    case "s_uric":
+                      _txt = encodeURIComponent(_str);
+                      break;
+                    case "s_uricgbk":
+                      _txt = GBK.URI.encodeURI(_str);
+                      break;
+                    default:
+                      _txt = _str;
+                      break;
+                  }
+                  _engine = config.general.engine.txtengine[_engine].content;
+                  _url = _engine.replace(/%s/g, _txt);
+                  sub.open(_url, _target, _index, _pin);
+                }
+              });
+            }
+          });
         }
-        _engine = config.general.engine.txtengine[_engine].content;
-        _url = _engine.replace(/%s/g, _txt);
-        sub.open(_url, _target, _index, _pin);
       };
       var thepers = ["clipboardRead"];
       var theorgs;
@@ -2563,13 +2769,45 @@ var sub = {
         return;
       }
       var theFunction = function () {
-        var clipOBJ = document.body.appendChild(
-          document.createElement("textarea")
-        );
-        clipOBJ.value = sub.message.selEle.lnk;
-        clipOBJ.select();
-        document.execCommand("copy");
-        clipOBJ.remove();
+        // Use modern Clipboard API instead of DOM manipulation
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(sub.message.selEle.lnk).catch(err => {
+            console.error('Failed to copy link URL: ', err);
+            // Fallback to content script execution
+            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+              if (tabs[0]) {
+                chrome.scripting.executeScript({
+                  target: {tabId: tabs[0].id},
+                  func: (url) => {
+                    const clipOBJ = document.body.appendChild(document.createElement("textarea"));
+                    clipOBJ.value = url;
+                    clipOBJ.select();
+                    document.execCommand("copy");
+                    clipOBJ.remove();
+                  },
+                  args: [sub.message.selEle.lnk]
+                });
+              }
+            });
+          });
+        } else {
+          // Fallback for older browsers
+          chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            if (tabs[0]) {
+              chrome.scripting.executeScript({
+                target: {tabId: tabs[0].id},
+                func: (url) => {
+                  const clipOBJ = document.body.appendChild(document.createElement("textarea"));
+                  clipOBJ.value = url;
+                  clipOBJ.select();
+                  document.execCommand("copy");
+                  clipOBJ.remove();
+                },
+                args: [sub.message.selEle.lnk]
+              });
+            }
+          });
+        }
       };
       var thepers = ["clipboardWrite"];
       var theorgs;
@@ -2580,13 +2818,45 @@ var sub = {
         return;
       }
       var theFunction = function () {
-        var clipOBJ = document.body.appendChild(
-          document.createElement("textarea")
-        );
-        clipOBJ.value = sub.message.selEle.str;
-        clipOBJ.select();
-        document.execCommand("copy");
-        clipOBJ.remove();
+        // Use modern Clipboard API instead of DOM manipulation
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(sub.message.selEle.str).catch(err => {
+            console.error('Failed to copy link text: ', err);
+            // Fallback to content script execution
+            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+              if (tabs[0]) {
+                chrome.scripting.executeScript({
+                  target: {tabId: tabs[0].id},
+                  func: (text) => {
+                    const clipOBJ = document.body.appendChild(document.createElement("textarea"));
+                    clipOBJ.value = text;
+                    clipOBJ.select();
+                    document.execCommand("copy");
+                    clipOBJ.remove();
+                  },
+                  args: [sub.message.selEle.str]
+                });
+              }
+            });
+          });
+        } else {
+          // Fallback for older browsers
+          chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            if (tabs[0]) {
+              chrome.scripting.executeScript({
+                target: {tabId: tabs[0].id},
+                func: (text) => {
+                  const clipOBJ = document.body.appendChild(document.createElement("textarea"));
+                  clipOBJ.value = text;
+                  clipOBJ.select();
+                  document.execCommand("copy");
+                  clipOBJ.remove();
+                },
+                args: [sub.message.selEle.str]
+              });
+            }
+          });
+        }
       };
       var thepers = ["clipboardWrite"];
       var theorgs;
@@ -2597,18 +2867,46 @@ var sub = {
         return;
       }
       var theFunction = function () {
-        var clipOBJ = document.body.appendChild(
-          document.createElement("textarea")
-        );
-        clipOBJ.value =
-          '<a href="' +
-          sub.message.selEle.lnk +
-          '">' +
-          sub.message.selEle.str +
-          "</a>";
-        clipOBJ.select();
-        document.execCommand("copy");
-        clipOBJ.remove();
+        const linkHtml = '<a href="' + sub.message.selEle.lnk + '">' + sub.message.selEle.str + "</a>";
+        // Use modern Clipboard API instead of DOM manipulation
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(linkHtml).catch(err => {
+            console.error('Failed to copy link as HTML: ', err);
+            // Fallback to content script execution
+            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+              if (tabs[0]) {
+                chrome.scripting.executeScript({
+                  target: {tabId: tabs[0].id},
+                  func: (html) => {
+                    const clipOBJ = document.body.appendChild(document.createElement("textarea"));
+                    clipOBJ.value = html;
+                    clipOBJ.select();
+                    document.execCommand("copy");
+                    clipOBJ.remove();
+                  },
+                  args: [linkHtml]
+                });
+              }
+            });
+          });
+        } else {
+          // Fallback for older browsers
+          chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            if (tabs[0]) {
+              chrome.scripting.executeScript({
+                target: {tabId: tabs[0].id},
+                func: (html) => {
+                  const clipOBJ = document.body.appendChild(document.createElement("textarea"));
+                  clipOBJ.value = html;
+                  clipOBJ.select();
+                  document.execCommand("copy");
+                  clipOBJ.remove();
+                },
+                args: [linkHtml]
+              });
+            }
+          });
+        }
       };
       var thepers = ["clipboardWrite"];
       var theorgs;
@@ -2704,13 +3002,45 @@ var sub = {
         return;
       }
       var theFunction = function () {
-        var clipOBJ = document.body.appendChild(
-          document.createElement("textarea")
-        );
-        clipOBJ.value = sub.message.selEle.img;
-        clipOBJ.select();
-        document.execCommand("copy");
-        clipOBJ.remove();
+        // Use modern Clipboard API instead of DOM manipulation
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(sub.message.selEle.img).catch(err => {
+            console.error('Failed to copy image URL: ', err);
+            // Fallback to content script execution
+            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+              if (tabs[0]) {
+                chrome.scripting.executeScript({
+                  target: {tabId: tabs[0].id},
+                  func: (imageUrl) => {
+                    const clipOBJ = document.body.appendChild(document.createElement("textarea"));
+                    clipOBJ.value = imageUrl;
+                    clipOBJ.select();
+                    document.execCommand("copy");
+                    clipOBJ.remove();
+                  },
+                  args: [sub.message.selEle.img]
+                });
+              }
+            });
+          });
+        } else {
+          // Fallback for older browsers
+          chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            if (tabs[0]) {
+              chrome.scripting.executeScript({
+                target: {tabId: tabs[0].id},
+                func: (imageUrl) => {
+                  const clipOBJ = document.body.appendChild(document.createElement("textarea"));
+                  clipOBJ.value = imageUrl;
+                  clipOBJ.select();
+                  document.execCommand("copy");
+                  clipOBJ.remove();
+                },
+                args: [sub.message.selEle.img]
+              });
+            }
+          });
+        }
       };
 
       var thepers = ["clipboardWrite"];
@@ -3472,20 +3802,26 @@ var sub = {
         chrome.management.getAll(function (exts) {
           let getBase64 = function (url, size, callback) {
             console.log(url);
-            var canvas = document.createElement("canvas");
-            var ctx = canvas.getContext("2d");
-            var img = new Image();
-            img.crossOrigin = "Anonymous";
-            img.src = url;
-            img.onload = function () {
-              canvas.height = size;
-              canvas.width = size;
-              ctx.drawImage(img, 0, 0, size, size);
-              var dataURL = canvas.toDataURL("image/" + "ico");
-              callback.call(this, dataURL);
-              // return dataURL;
-              canvas = null;
-            };
+            // Canvas operations are not available in Service Worker (Manifest V3)
+            // This functionality is disabled until alternative solution is implemented
+            console.warn('Canvas operations not available in Service Worker - getBase64 disabled');
+            callback.call(this, url); // Return original URL as fallback
+            return;
+            
+            // Original canvas code commented out:
+            // var canvas = document.createElement("canvas");
+            // var ctx = canvas.getContext("2d");
+            // var img = new Image();
+            // img.crossOrigin = "Anonymous";
+            // img.src = url;
+            // img.onload = function () {
+            //   canvas.height = size;
+            //   canvas.width = size;
+            //   ctx.drawImage(img, 0, 0, size, size);
+            //   var dataURL = canvas.toDataURL("image/" + "ico");
+            //   callback.call(this, dataURL);
+            //   canvas = null;
+            // };
           };
           for (var i = 0; i < exts.length; i++) {
             exts[i].iconBase64 = "";
@@ -5188,20 +5524,83 @@ var sub = {
           //for action paste
           sendResponse(sub.theConf); //error log, if none sendResponse
           sub.checkPermission(["clipboardRead"], null, function () {
-            var domCB = document.createElement("textarea");
-            domCB.classList.add("su_cb_textarea");
-            document.body.appendChild(domCB);
-            domCB.focus();
-            document.execCommand("paste");
-            sub.theConf.paste = domCB.value;
-            sub.theConf.typeAction = "paste";
-            chrome.tabs.sendMessage(
-              sender.tab.id,
-              { type: "actionPaste", value: sub.theConf },
-              function (response) {
-                domCB.remove();
-              }
-            );
+            // Use modern Clipboard API instead of DOM manipulation
+            if (navigator.clipboard && navigator.clipboard.readText) {
+              navigator.clipboard.readText().then(text => {
+                sub.theConf.paste = text;
+                sub.theConf.typeAction = "paste";
+                chrome.tabs.sendMessage(
+                  sender.tab.id,
+                  { type: "actionPaste", value: sub.theConf },
+                  function (response) {
+                    // No need to remove element in modern API
+                  }
+                );
+              }).catch(err => {
+                console.error('Failed to read clipboard for paste action: ', err);
+                // Fallback to content script execution
+                chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                  if (tabs[0]) {
+                    chrome.scripting.executeScript({
+                      target: {tabId: tabs[0].id},
+                      func: () => {
+                        const domCB = document.createElement("textarea");
+                        domCB.classList.add("su_cb_textarea");
+                        document.body.appendChild(domCB);
+                        domCB.focus();
+                        document.execCommand("paste");
+                        const pastedText = domCB.value;
+                        domCB.remove();
+                        return pastedText;
+                      }
+                    }, (results) => {
+                      if (results && results[0] && results[0].result) {
+                        sub.theConf.paste = results[0].result;
+                        sub.theConf.typeAction = "paste";
+                        chrome.tabs.sendMessage(
+                          sender.tab.id,
+                          { type: "actionPaste", value: sub.theConf },
+                          function (response) {
+                            // Action completed
+                          }
+                        );
+                      }
+                    });
+                  }
+                });
+              });
+            } else {
+              // Fallback for older browsers
+              chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                if (tabs[0]) {
+                  chrome.scripting.executeScript({
+                    target: {tabId: tabs[0].id},
+                    func: () => {
+                      const domCB = document.createElement("textarea");
+                      domCB.classList.add("su_cb_textarea");
+                      document.body.appendChild(domCB);
+                      domCB.focus();
+                      document.execCommand("paste");
+                      const pastedText = domCB.value;
+                      domCB.remove();
+                      return pastedText;
+                    }
+                  }, (results) => {
+                    if (results && results[0] && results[0].result) {
+                      sub.theConf.paste = results[0].result;
+                      sub.theConf.typeAction = "paste";
+                      chrome.tabs.sendMessage(
+                        sender.tab.id,
+                        { type: "actionPaste", value: sub.theConf },
+                        function (response) {
+                          // Action completed
+                        }
+                      );
+                    }
+                  });
+                }
+              });
+            }
           });
         } else {
           console.log("s");
@@ -5219,20 +5618,83 @@ var sub = {
             ["clipboardRead", "clipboardWrite"],
             null,
             function () {
-              var domCB = document.createElement("textarea");
-              domCB.classList.add("su_cb_textarea");
-              document.body.appendChild(domCB);
-              domCB.focus();
-              document.execCommand("paste");
-              sub.theConf.paste = domCB.value;
-              sub.theConf.typeAction = "paste";
-              chrome.tabs.sendMessage(
-                sender.tab.id,
-                { type: "actionPaste", value: sub.theConf },
-                function (response) {
-                  domCB.remove();
-                }
-              );
+              // Use modern Clipboard API instead of DOM manipulation
+              if (navigator.clipboard && navigator.clipboard.readText) {
+                navigator.clipboard.readText().then(text => {
+                  sub.theConf.paste = text;
+                  sub.theConf.typeAction = "paste";
+                  chrome.tabs.sendMessage(
+                    sender.tab.id,
+                    { type: "actionPaste", value: sub.theConf },
+                    function (response) {
+                      // No need to remove element in modern API
+                    }
+                  );
+                }).catch(err => {
+                  console.error('Failed to read clipboard for paste action: ', err);
+                  // Fallback to content script execution
+                  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                    if (tabs[0]) {
+                      chrome.scripting.executeScript({
+                        target: {tabId: tabs[0].id},
+                        func: () => {
+                          const domCB = document.createElement("textarea");
+                          domCB.classList.add("su_cb_textarea");
+                          document.body.appendChild(domCB);
+                          domCB.focus();
+                          document.execCommand("paste");
+                          const pastedText = domCB.value;
+                          domCB.remove();
+                          return pastedText;
+                        }
+                      }, (results) => {
+                        if (results && results[0] && results[0].result) {
+                          sub.theConf.paste = results[0].result;
+                          sub.theConf.typeAction = "paste";
+                          chrome.tabs.sendMessage(
+                            sender.tab.id,
+                            { type: "actionPaste", value: sub.theConf },
+                            function (response) {
+                              // Action completed
+                            }
+                          );
+                        }
+                      });
+                    }
+                  });
+                });
+              } else {
+                // Fallback for older browsers
+                chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                  if (tabs[0]) {
+                    chrome.scripting.executeScript({
+                      target: {tabId: tabs[0].id},
+                      func: () => {
+                        const domCB = document.createElement("textarea");
+                        domCB.classList.add("su_cb_textarea");
+                        document.body.appendChild(domCB);
+                        domCB.focus();
+                        document.execCommand("paste");
+                        const pastedText = domCB.value;
+                        domCB.remove();
+                        return pastedText;
+                      }
+                    }, (results) => {
+                      if (results && results[0] && results[0].result) {
+                        sub.theConf.paste = results[0].result;
+                        sub.theConf.typeAction = "paste";
+                        chrome.tabs.sendMessage(
+                          sender.tab.id,
+                          { type: "actionPaste", value: sub.theConf },
+                          function (response) {
+                            // Action completed
+                          }
+                        );
+                      }
+                    });
+                  }
+                });
+              }
             }
           );
         } else {
