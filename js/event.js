@@ -600,10 +600,59 @@ var sue={
 					&&!e[config.mges.settings.holdkey+"Key"]){
 						sue.lineDrawReady(e,"mges");
 				}
-				//fix rges mouseup bug
-				if(!extDisable&&config.general.fnswitch.fnrges){
-					console.log("[smartup] mouseup",e.buttons);
-					sue.cons.rges_btn=e.button;
+				
+				// Enhanced rocker gesture handling - trigger action on second button down
+				if(!extDisable && config.general.fnswitch.fnrges){
+					console.log("[smartup] rges mousedown",e.buttons, e.button);
+					
+					// Check if this is a rocker gesture situation
+					if((e.buttons == 3) && (e.button == 0 || e.button == 2)) {
+						// Both left and right buttons are now pressed
+						sue.inRges = true;
+						
+						// Determine the gesture type based on which button was pressed second
+						let rgesType;
+						if(e.button == 2) {
+							// Right button pressed while left was held (buttons=3, new button=2)
+							rgesType = 0; // Left->Right gesture
+						} else if(e.button == 0) {
+							// Left button pressed while right was held (buttons=3, new button=0)  
+							rgesType = 1; // Right->Left gesture
+						}
+						
+						if(rgesType !== undefined) {
+							var sendValue = {
+								buttons: e.buttons,
+								gestureType: rgesType
+							}
+							
+							// Trigger the rocker gesture action immediately
+							if (extensionContextValid && checkExtensionContext()) {
+								try {
+									chrome.runtime.sendMessage(extID,{type:"action_rges",sendValue:sendValue,selEle:sue.selEle},function(response){
+										if (chrome.runtime.lastError) {
+											if (chrome.runtime.lastError.message.includes("Extension context invalidated")) {
+												if (extensionContextValid) {
+													extensionContextValid = false;
+													showExtensionContextNotification();
+												}
+												return;
+											}
+											console.warn("[smartup] Runtime error in rges:", chrome.runtime.lastError.message);
+										}
+									})
+								} catch (error) {
+									if (extensionContextValid) {
+										extensionContextValid = false;
+										showExtensionContextNotification();
+									}
+								}
+							}
+						}
+					} else {
+						// Store the first button for potential rocker gesture
+						sue.cons.rges_btn = e.button;
+					}
 				}
 				break;
 			case"mouseup":
@@ -617,34 +666,15 @@ var sue={
 					sue._lastX=e.clientX;
 					sue._lastY=e.clientY;
 				}
-				if(!extDisable&&config.general.fnswitch.fnrges&&(e.buttons==1||e.buttons==2)&&(e.button==0||e.button==2)){
-					console.log("[smartup] mouseup",e.button+"/"+e.buttons+"/"+sue.cons.rges_btn)
-					if(e.button!=sue.cons.rges_btn){break;}//fix mouseup bug
-					sue.inRges=true;
-					var sendValue={
-						buttons:e.buttons
-					}
-					// Check extension context before sending message
-					if (extensionContextValid && checkExtensionContext()) {
-						try {
-							chrome.runtime.sendMessage(extID,{type:"action_rges",sendValue:sendValue,selEle:sue.selEle},function(response){
-								if (chrome.runtime.lastError) {
-									if (chrome.runtime.lastError.message.includes("Extension context invalidated")) {
-										if (extensionContextValid) {
-											extensionContextValid = false;
-											showExtensionContextNotification();
-										}
-										return;
-									}
-									console.warn("[smartup] Runtime error in rges:", chrome.runtime.lastError.message);
-								}
-							})
-						} catch (error) {
-							if (extensionContextValid) {
-								extensionContextValid = false;
-								showExtensionContextNotification();
-							}
-						}
+				// Reset rocker gesture state when buttons are released
+				if(!extDisable && config.general.fnswitch.fnrges && sue.inRges) {
+					// Reset the rocker gesture state when one of the buttons is released
+					if(e.button == 0 || e.button == 2) {
+						console.log("[smartup] rges mouseup reset", e.button);
+						// Keep inRges true briefly to prevent context menu, then reset
+						window.setTimeout(function() {
+							sue.inRges = false;
+						}, 50);
 					}
 				}
 				break;

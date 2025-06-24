@@ -5437,7 +5437,10 @@ var sub = {
         }
         break;
       case "action_rges":
-        let rgesType = message.sendValue.buttons == 1 ? 0 : 1;
+        // Use the gesture type provided by the event handler, or fall back to button-based detection
+        let rgesType = message.sendValue.gestureType !== undefined 
+          ? message.sendValue.gestureType 
+          : (message.sendValue.buttons == 1 ? 0 : 1);
         /*theConf=config.rges.actions[rgesType]*/ sub.theConf =
           config.rges.actions[rgesType];
         sub.initCurrent(sender, sub.theConf);
