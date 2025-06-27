@@ -39,7 +39,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["images/*", "icon.png"],
+      "resources": ["image/*", "icon.png"],
       "matches": ["*://*/*"]
     }
   ],
