@@ -54,7 +54,7 @@ var getDefault = {
   },
   value: function () {
     var config = {
-      version: 46,
+      version: 47,
       plus: {},
       apps: {
         appslist: {
@@ -304,6 +304,45 @@ var getDefault = {
           lnk: true,
           img: true,
           draggable: true,
+        },
+        ui: {
+          line: {
+            enable: false,
+            color: "#008080",
+            width: 3,
+            opacity: 90,
+          },
+          direct: {
+            enable: false,
+            color: "#8e9bd5",
+            width: 32,
+            opacity: 80,
+            style: "center",
+          },
+          tip: {
+            enable: true,
+            color: "#000000",
+            bgcolor: "#cbc8f9",
+            width: 18,
+            opacity: 80,
+            style: "follow",
+            withdir: false
+          },
+          note: {
+            enable: true,
+            color: "#f75620",
+            opacity: 90,
+            width: 12,
+            style: "hover",
+          },
+          allaction: {
+            enable: false,
+            color: "#ffffff",
+            bgcolor: "#576f71",
+            width: 24,
+            opacity: 70,
+            style: "ui_bottom",
+          },
         },
         tsdrg: [
           {
@@ -4222,7 +4261,17 @@ var sub = {
         sub.setBackup("45");
       } else if (config.version < 46) {
         sub.setBackup("46");
+      } else if (config.version < 47) {
+        sub.setBackup("47");
       }
+    },
+    _47: function () {
+      // Backfill sdrg.ui for older configs to enable tip display during Simple Drag
+      if (!config.sdrg.ui) {
+        config.sdrg.ui = JSON.parse(JSON.stringify(defaultConf.sdrg.ui));
+      }
+      config.version = 47;
+      sub.saveConf(true);
     },
     _46: function () {
       config.version = 46;
@@ -5494,8 +5543,10 @@ var sub = {
         _sendConf.note = sub.theConf.note;
         _sendConf.allaction = [];
         //get all actions
-        let _confType = config[message.drawType[0]][message.drawType[1]];
-        if (config[sub.message.drawType[0]].ui.allaction.enable) {
+        let _confRoot = config[message.drawType[0]] || {};
+        let _confType = _confRoot[message.drawType[1]] || [];
+        let _uiConf = (_confRoot.ui && _confRoot.ui.allaction) ? _confRoot.ui.allaction : { enable: false };
+        if (_uiConf.enable) {
           for (let i = 0; i < _confType.length; i++) {
             if (
               _confType[i].direct.indexOf(message.direct) == 0 &&

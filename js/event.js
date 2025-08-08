@@ -1157,7 +1157,7 @@ var sue={
 			return;
 		}
 
-		var dir;
+        var dir;
 		if(sue.drawType[0]=="sdrg"){
 			var angle=180/(Math.PI/Math.acos(dy/dz));
 
@@ -1183,12 +1183,16 @@ var sue={
 		}
 
 		var lastDir=sue._dirArray.substr(sue._dirArray.length-1,1);
-		if(dir!=lastDir){
+        if(dir!=lastDir){
 			sue._dirArray+=dir;
 			//show direct
-			sue.drawType[0]!="sdrg"&&config[sue.drawType[0]].ui.direct.enable?sue.ui_direct(e):null;
+            // For Simple Drag, allow UI direct according to its own config
+            (config[sue.drawType[0]].ui&&config[sue.drawType[0]].ui.direct&&config[sue.drawType[0]].ui.direct.enable)?sue.ui_direct(e):null;
 			//get tip
-			sue.drawType[0]!="sdrg"&&(config[sue.drawType[0]].ui.tip.enable||config[sue.drawType[0]].ui.note.enable)?sue.sendDir(sue._dirArray,"gettip",e):null;
+            // Allow tip display for Simple Drag as well
+            ((config[sue.drawType[0]].ui&&config[sue.drawType[0]].ui.tip&&config[sue.drawType[0]].ui.tip.enable)||
+             (config[sue.drawType[0]].ui&&config[sue.drawType[0]].ui.note&&config[sue.drawType[0]].ui.note.enable))
+             ?sue.sendDir(sue._dirArray,"gettip",e):null;
 		}
 		//timeout
 		if(config.general.settings.timeout){
