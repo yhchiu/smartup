@@ -625,11 +625,26 @@ var sue={
 								buttons: e.buttons,
 								gestureType: rgesType
 							}
+						// Capture selection and target details for rocker gestures
+						sue.selEle = {};
+						sue.selEle.txt = window.getSelection().toString();
+						sue.selEle.lnk = e.href || (e.target && e.target.href) || null;
+						sue.selEle.img = (e.target && e.target.src) || null;
+						sue.selEle.str = (e.target && e.target.innerText) || "";
+						// Also find closest anchor if clicking inside nested elements
+						try {
+							const closestLink = e?.target?.closest ? e.target.closest('a') : null;
+							if (closestLink) {
+								sue.selEle.lnk = sue.selEle.lnk || closestLink.href;
+								sue.selEle.objLnk = { href: closestLink.href, innerText: closestLink.innerText };
+							}
+						} catch (err) {}
+						sue.startEle = e.target;
 							
 							// Trigger the rocker gesture action immediately
 							if (extensionContextValid && checkExtensionContext()) {
 								try {
-									chrome.runtime.sendMessage(extID,{type:"action_rges",sendValue:sendValue,selEle:sue.selEle},function(response){
+							chrome.runtime.sendMessage(extID,{type:"action_rges",sendValue:sendValue,selEle:sue.selEle},function(response){
 										if (chrome.runtime.lastError) {
 											if (chrome.runtime.lastError.message.includes("Extension context invalidated")) {
 												if (extensionContextValid) {

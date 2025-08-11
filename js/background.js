@@ -5487,13 +5487,22 @@ var sub = {
         break;
       case "action_rges":
         // Use the gesture type provided by the event handler, or fall back to button-based detection
-        let rgesType = message.sendValue.gestureType !== undefined 
-          ? message.sendValue.gestureType 
-          : (message.sendValue.buttons == 1 ? 0 : 1);
-        /*theConf=config.rges.actions[rgesType]*/ sub.theConf =
-          config.rges.actions[rgesType];
-        sub.initCurrent(sender, sub.theConf);
-        break;
+        let rgesType = message.sendValue && message.sendValue.gestureType !== undefined
+          ? message.sendValue.gestureType
+          : (message.sendValue && message.sendValue.buttons == 1 ? 0 : 1);
+
+        // Normalize selection object to ensure link fields exist for copy actions
+        sub.message.selEle = sub.message.selEle || {};
+        if (!sub.message.selEle.lnk && sub.message.selEle.objLnk && sub.message.selEle.objLnk.href) {
+          sub.message.selEle.lnk = sub.message.selEle.objLnk.href;
+        }
+
+        /*theConf=config.rges.actions[rgesType]*/ sub.theConf = config.rges.actions[rgesType];
+        // Ensure async handlers have time; some actions rely on clipboard or tab query
+        setTimeout(function(){ sub.initCurrent(sender, sub.theConf); }, 0);
+        // Inform the sender that the message is received to avoid port closing warnings
+        try { sendResponse && sendResponse({type: "action_rges", ok: true}); } catch (e) {}
+        return true;
       case "action_wges":
         let _id;
         if (message.sendValue.buttons == 1) {
